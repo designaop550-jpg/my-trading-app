@@ -3,94 +3,77 @@ from kiteconnect import KiteConnect
 import pandas as pd
 import time
 import random
-import plotly.graph_objects as go
-from datetime import datetime
 
-# Page Configuration
-st.set_page_config(page_title="Pro AI Trader Terminal", layout="wide")
+# --- Dashboard Layout ---
+st.set_page_config(page_title="Nifty Option AI Bot", layout="wide")
+st.title("🎯 Nifty Options AI Assistant (CE/PE)")
 
-# Custom CSS for Dark Fintech Look
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; }
-    [data-testid="stMetricValue"] { font-size: 24px; color: #00ffcc; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #262730; }
-    </style>
-    """, unsafe_allow_html=True)
+# Sidebar
+st.sidebar.header("Control Center")
+demo_mode = st.sidebar.toggle("Demo Mode (Testing)", value=True)
 
-st.title("⚡ Pro AI Trading Terminal")
+# Placeholder values for Demo
+if demo_mode:
+    cmp = 24245.50
+    v_score = "✅ 2.5x High"
+    c_close = "✅ Body Closed"
+    rsi_val = 62.5
+    trend_15m = "BULLISH"
+    trend_daily = "BULLISH"
+else:
+    # Real Kite Integration (Kite API logic yahan aayegi)
+    cmp, v_score, c_close, rsi_val = 0, "", "", 0
 
-# --- Sidebar ---
-st.sidebar.header("🕹️ Control Panel")
-demo_mode = st.sidebar.toggle("Demo Mode (Fake Data)", value=True)
+# --- MAIN DASHBOARD FORMAT ---
+st.markdown(f"### 📍 CMP: **{cmp}**")
 
-# Session State for Logs & Data
-if 'trade_log' not in st.session_state: st.session_state.trade_log = []
-if 'price_history' not in st.session_state: st.session_state.price_history = pd.DataFrame(columns=['Time', 'Price', 'Open', 'High', 'Low', 'Close'])
-
-# --- Top Row: Multi-Index Watchlist ---
-cols = st.columns(4)
-indices = ["NIFTY 50", "BANKNIFTY", "FINNIFTY", "INDIA VIX"]
-for i, index in enumerate(indices):
-    with cols[i]:
-        val = random.randint(20000, 24000) if demo_mode else 0 # Real logic here
-        st.metric(index, f"₹{val}", f"{random.uniform(-1, 1):.2f}%")
+# Row 1: Trend Analysis
+col_t1, col_t2, col_t3 = st.columns(3)
+col_t1.metric("15M Trend", "UP" if trend_15m == "BULLISH" else "DOWN")
+col_t2.metric("1H Trend", "UP (Chart Needed)")
+col_t3.metric("Daily Trend", "UP")
 
 st.divider()
 
-# --- Main Layout: Chart & AI Analysis ---
-col_left, col_right = st.columns([2, 1])
+# Row 2: Levels & Checklist
+col_l, col_r = st.columns(2)
 
-with col_left:
-    st.subheader("📊 Live Candlestick Analysis")
-    
-    # Generating Mock Candlestick Data
-    curr_p = st.session_state.price_history['Price'].iloc[-1] if not st.session_state.price_history.empty else 24200
-    new_p = curr_p + random.randint(-20, 20)
-    
-    new_row = {'Time': datetime.now().strftime('%H:%M:%S'), 'Price': new_p, 
-               'Open': curr_p, 'High': max(curr_p, new_p) + 5, 'Low': min(curr_p, new_p) - 5, 'Close': new_p}
-    
-    st.session_state.price_history = pd.concat([st.session_state.price_history, pd.DataFrame([new_row])], ignore_index=True)
-    if len(st.session_state.price_history) > 30: st.session_state.price_history = st.session_state.price_history.iloc[1:]
+with col_l:
+    st.subheader("🎯 KEY LEVELS")
+    st.write("🚀 **Resistance:** 24320 / 24450")
+    st.write("🛡️ **Support:** 24180 / 24050")
 
-    # Plotly Candlestick Chart
-    fig = go.Figure(data=[go.Candlestick(x=st.session_state.price_history['Time'],
-                open=st.session_state.price_history['Open'],
-                high=st.session_state.price_history['High'],
-                low=st.session_state.price_history['Low'],
-                close=st.session_state.price_history['Close'],
-                increasing_line_color= '#00ffcc', decreasing_line_color= '#ff4b4b')])
-    
-    fig.update_layout(template="plotly_dark", margin=dict(l=10, r=10, t=10, b=10), height=400)
-    st.plotly_chart(fig, use_container_width=True)
+with col_r:
+    st.subheader("✅ 4-POINT CHECKLIST")
+    st.write(f"1. **VOLUME:** {v_score}")
+    st.write(f"2. **CANDLE CLOSE:** {c_close}")
+    st.write("3. **RETEST:** ⏳ Pending")
+    st.write("4. **TREND ALIGN:** ✅ Daily & 15M Match")
+    st.info("**SCORE: 3/4 (OK TRADE)**")
 
-with col_right:
-    st.subheader("🧠 AI Signal Center")
-    
-    # Confidence Score Simulation
-    conf = random.randint(40, 95)
-    st.write(f"**AI Confidence:** {conf}%")
-    st.progress(conf / 100)
-    
-    # Signal Box
-    if conf > 75:
-        st.success("🚀 SIGNAL: STRONG BUY")
-        if st.button("Execute BUY Order"):
-            st.session_state.trade_log.append(f"[{datetime.now().strftime('%H:%M')}] Bought NIFTY at {new_p}")
-    elif conf < 50:
-        st.error("📉 SIGNAL: STRONG SELL")
-        if st.button("Execute SELL Order"):
-            st.session_state.trade_log.append(f"[{datetime.now().strftime('%H:%M')}] Sold NIFTY at {new_p}")
-    else:
-        st.warning("⏳ SIGNAL: WAIT / SIDEWAYS")
+st.divider()
 
-    # Trade Log
-    st.write("---")
-    st.write("**Recent Activity Log**")
-    for log in reversed(st.session_state.trade_log[-5:]):
-        st.caption(log)
+# --- ENTRY SIGNALS (Call/Put) ---
+col_call, col_put = st.columns(2)
 
-# Auto-refresh
-time.sleep(2)
+with col_call:
+    st.success("🟢 BUY CALL above 24260")
+    st.write("**SL:** 24220 (40 pts)")
+    st.write("**T1:** 24320 | **T2:** 24380")
+    st.write("**R:R = 1:2.5**")
+
+with col_put:
+    st.error("🔴 BUY PUT below 24180")
+    st.write("**SL:** 24220 (40 pts)")
+    st.write("**T1:** 24100 | **T2:** 24050")
+    st.write("**R:R = 1:2**")
+
+st.divider()
+
+# --- RSI & VERDICT ---
+st.warning(f"⚠️ NOTE: RSI is at **{rsi_val}**. Not overbought yet, room for upside.")
+st.subheader(f"🎯 VERDICT: **OK TRADE (High Confidence)**")
+
+# Auto Refresh logic
+time.sleep(3)
 st.rerun()
